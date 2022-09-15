@@ -53,7 +53,16 @@
     }
 
     #messages>li {
+      width: 50%;
       padding: 0.5rem 1rem;
+    }
+
+    #messages>li.guest {
+      float: left;
+    }
+
+    #messages>li.host {
+      float: right;
     }
 
     #messages>li:nth-child(odd) {
@@ -82,11 +91,19 @@
 
     .contacts>li:hover {
       cursor: pointer;
-      background: greenyellow !important;
+      background: #ffbbcc !important;
     }
 
     .contacts>li:nth-child(odd) {
       background: #efefef;
+    }
+
+    li.active {
+      background: greenyellow !important;
+    }
+
+    li.typing::after {
+      content: " ...";
     }
   </style>
 </head>
@@ -95,7 +112,13 @@
   <div id="app">
     <div id="contact-area">
       <ul class="contacts">
-        <li>abdc</li>
+        <li class="active" data-id="1" data-target="user">User 1</li>
+        <li data-id="2" data-target="user">User 2</li>
+        <li data-id="3" data-target="user">User 3</li>
+      </ul>
+      <ul class="contacts">
+        <li data-id="1" data-target="group">Group 1</li>
+        <li data-id="2" data-target="group">Group 2</li>
       </ul>
     </div>
     <div id="message-area">
@@ -108,38 +131,82 @@
 </body>
 
 <script src="/socket.io/socket.io.js"></script>
+
 <script type="module">
   import { socketEvent } from '/socket.event.js'
-
-  let userId = prompt("Chọn userId từ 1-3 thay cho login");
-
-  var socket = io('http://localhost:3000');
+  let userId = prompt("Chọn userId từ 1-3 thay cho login", 0);
+  if (userId) {
+    var socket = io('http://localhost:3000');
+  }
 
   var form = document.getElementById('form');
   var input = document.getElementById('input');
 
+  // send typing event
+  input.addEventListener('keyup', function (e) {
+    const activeContact = document.querySelector('.contacts>li.active')
+    const payload = { from: userId, to: activeContact.dataset.id, target: activeContact.dataset.target }
+    console.log(input.value)
+    if (input.value) {
+      socket.emit(socketEvent.chat.typingStart, payload);
+    }
+    else {
+      socket.emit(socketEvent.chat.typingEnd, payload);
+    }
+  })
+
+  // send messages
   form.addEventListener('submit', function (e) {
     e.preventDefault();
     if (input.value) {
-      socket.emit('chat message', input.value);
+      const activeContact = document.querySelector('.contacts>li.active')
+      const payload = { from: userId, to: activeContact.dataset.id, msg: input.value, target: activeContact.dataset.target }
+      socket.emit(socketEvent.chat.sendMessages, payload);
+
+      // side effect
       input.value = '';
+      displayMessages(payload.msg, 'host')
     }
   });
 
   socket.on('connect', () => {
-    displayMessages(`Your socketID: ${socket.id}`)
+    // displayMessages(`Your socketID: ${socket.id}`)
+    socket.emit(socketEvent.account.login, userId)
   })
 
-  socket.on('chat message', function (msg) {
-    displayMessages(msg)
+  socket.on(socketEvent.chat.typingStart, function (payload) {
+    const typingContact = document.querySelector(`.contacts>li[data-id="${payload.from}"]`)
+    typingContact.classList.add('typing')
+  });
+  socket.on(socketEvent.chat.typingEnd, function (payload) {
+    const typingContact = document.querySelector(`.contacts>li[data-id="${payload.from}"]`)
+    typingContact.classList.remove('typing')
   });
 
-  socket.on('user connected', (id) => {
-    displayMessages(`User connected: ${id}`)
+  socket.on(socketEvent.chat.receiveMessages, function (payload) {
+    displayMessages(payload.msg, 'guest')
+  });
+</script>
+<script>
+  let contacts = document.querySelectorAll('.contacts>li')
+  Array.from(contacts).forEach(contact => {
+    contact.onclick = () => {
+      const activeContact = document.querySelector('.contacts>li.active')
+      activeContact.classList.remove('active')
+      contact.classList.add('active')
+
+      changeContact()
+    }
   })
 
-  function displayMessages(msg) {
+  function changeContact() {
+    const messagesBox = document.getElementById('messages')
+    messagesBox.innerHTML = ''
+  }
+
+  function displayMessages(msg, agent = 'host') {
     var item = document.createElement('li');
+    item.classList.add(agent)
     item.textContent = msg;
     messages.appendChild(item);
     window.scrollTo(0, document.body.scrollHeight);

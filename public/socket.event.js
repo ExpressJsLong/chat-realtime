@@ -1,6 +1,10 @@
 export const socketEvent = {
+  account: {
+    login: "LOGIN",
+  },
   chat: {
-    typingMessages: "TYPING_MESSAGES",
+    typingStart: "TYPING_START",
+    typingEnd: "TYPING_END",
     sendMessages: "SEND_MESSAGES",
     receiveMessages: "RECEIVE_MESSAGES",
   },

@@ -21,7 +21,7 @@ app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
 
-io.on("connection", socketHandle);
+socketHandle(io);
 
 server.listen(3000, () => {
   console.log("listening on http://localhost:3000");

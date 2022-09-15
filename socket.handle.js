@@ -1,18 +1,30 @@
 import { socketEvent } from "./public/socket.event.js";
 
-export function socketHandle(socket) {
-  console.log("user connected " + socket.id);
-  socket.on("disconnect", () => {
-    console.log("user disconnected");
-  });
+export function socketHandle(io) {
+  io.on("connection", (socket) => {
+    // console.log(socket);
+    socket.on("disconnect", () => {
+      console.log("user disconnected");
+    });
 
-  socket.on("chat message", (msg) => {
-    console.log("message: " + msg);
-    io.emit("chat message", msg);
-  });
+    socket.on(socketEvent.account.login, (userId) => {
+      console.log("connected userId: " + userId);
+      socket.join(userId);
+    });
 
-  socket.on(socketEvent.chat.typingMessages, (msg) => {
-    console.log("message: " + msg);
-    io.emit("chat message", msg);
+    socket.on(socketEvent.chat.typingStart, (payload) => {
+      console.log(`typing start payload: ${JSON.stringify(payload)}`);
+      io.to(payload.to).emit(socketEvent.chat.typingStart, payload);
+    });
+
+    socket.on(socketEvent.chat.typingEnd, (payload) => {
+      console.log(`typing end payload: ${JSON.stringify(payload)}`);
+      io.to(payload.to).emit(socketEvent.chat.typingEnd, payload);
+    });
+
+    socket.on(socketEvent.chat.sendMessages, (payload) => {
+      console.log(`messages payload: ${JSON.stringify(payload)}`);
+      io.to(payload.to).emit(socketEvent.chat.receiveMessages, payload);
+    });
   });
 }
