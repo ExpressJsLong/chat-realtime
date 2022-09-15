@@ -1,4 +1,5 @@
-import { socketEvent } from "./public/socket.event.js";
+import { socketEvent } from "../public/socket.event.js";
+import { getGroupMembers, insertMessages } from "./route.js";
 
 export function socketHandle(io) {
   io.on("connection", (socket) => {
@@ -24,7 +25,20 @@ export function socketHandle(io) {
 
     socket.on(socketEvent.chat.sendMessages, (payload) => {
       console.log(`messages payload: ${JSON.stringify(payload)}`);
-      io.to(payload.to).emit(socketEvent.chat.receiveMessages, payload);
+      insertMessages(payload);
+
+      // send to user
+      if (payload.target == "USER") {
+        io.to(payload.to).emit(socketEvent.chat.receiveMessages, payload);
+      } else {
+        getGroupMembers(payload.to).forEach((item) => {
+          console.log(item);
+          io.to(String(item.userId)).emit(
+            socketEvent.chat.receiveMessages,
+            payload
+          );
+        });
+      }
     });
   });
 }

@@ -6,7 +6,13 @@ const server = http.createServer(app);
 
 import { Server } from "socket.io";
 import { instrument } from "@socket.io/admin-ui";
-import { socketHandle } from "./socket.handle.js";
+import { socketHandle } from "./src/socket.handle.js";
+import { route } from "./src/route.js";
+
+import bodyParser from "body-parser";
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 const io = new Server(server, {
   cors: {
@@ -17,9 +23,7 @@ const io = new Server(server, {
 
 app.use(express.static("public"));
 
-app.get("/", (req, res) => {
-  res.sendFile(__dirname + "/index.html");
-});
+route(app);
 
 socketHandle(io);
 

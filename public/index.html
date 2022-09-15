@@ -55,6 +55,7 @@
     #messages>li {
       width: 50%;
       padding: 0.5rem 1rem;
+      position: relative;
     }
 
     #messages>li.guest {
@@ -67,6 +68,20 @@
 
     #messages>li:nth-child(odd) {
       background: #efefef;
+    }
+
+    #messages>li.guest:hover::before {
+      content: "Modify (chuyển tiếp, ghim)";
+      font-size: 6px;
+      position: absolute;
+      top: 100%;
+    }
+
+    #messages>li.host:hover::before {
+      content: "Modify (thu hồi, chuyển tiếp, ghim)";
+      font-size: 6px;
+      position: absolute;
+      top: 100%;
     }
 
     #app {
@@ -112,13 +127,13 @@
   <div id="app">
     <div id="contact-area">
       <ul class="contacts">
-        <li class="active" data-id="1" data-target="user">User 1</li>
-        <li data-id="2" data-target="user">User 2</li>
-        <li data-id="3" data-target="user">User 3</li>
+        <li data-id="1" data-target="USER">User 1</li>
+        <li data-id="2" data-target="USER">User 2</li>
+        <li data-id="3" data-target="USER">User 3</li>
       </ul>
       <ul class="contacts">
-        <li data-id="1" data-target="group">Group 1</li>
-        <li data-id="2" data-target="group">Group 2</li>
+        <li data-id="1" data-target="GROUP">Group 1</li>
+        <li data-id="2" data-target="GROUP">Group 2</li>
       </ul>
     </div>
     <div id="message-area">
@@ -146,7 +161,6 @@
   input.addEventListener('keyup', function (e) {
     const activeContact = document.querySelector('.contacts>li.active')
     const payload = { from: userId, to: activeContact.dataset.id, target: activeContact.dataset.target }
-    console.log(input.value)
     if (input.value) {
       socket.emit(socketEvent.chat.typingStart, payload);
     }
@@ -169,25 +183,50 @@
     }
   });
 
+
+  // Socket event listener
   socket.on('connect', () => {
     // displayMessages(`Your socketID: ${socket.id}`)
     socket.emit(socketEvent.account.login, userId)
   })
 
   socket.on(socketEvent.chat.typingStart, function (payload) {
-    const typingContact = document.querySelector(`.contacts>li[data-id="${payload.from}"]`)
+    let typingContact = null
+    if (payload.target == "USER")
+      typingContact = document.querySelector(`.contacts>li[data-id="${payload.from}"][data-target="${payload.target}"]`)
+    else
+      typingContact = document.querySelector(`.contacts>li[data-id="${payload.to}"][data-target="${payload.target}"]`)
     typingContact.classList.add('typing')
   });
   socket.on(socketEvent.chat.typingEnd, function (payload) {
-    const typingContact = document.querySelector(`.contacts>li[data-id="${payload.from}"]`)
+    let typingContact = null
+    if (payload.target == "USER")
+      typingContact = document.querySelector(`.contacts>li[data-id="${payload.from}"][data-target="${payload.target}"]`)
+    else
+      typingContact = document.querySelector(`.contacts>li[data-id="${payload.to}"][data-target="${payload.target}"]`)
     typingContact.classList.remove('typing')
   });
 
   socket.on(socketEvent.chat.receiveMessages, function (payload) {
-    displayMessages(payload.msg, 'guest')
+    if (isMessagesCanDisplay(payload)) displayMessages(payload.msg, 'guest')
   });
-</script>
-<script>
+
+  function isMessagesCanDisplay(payload) {
+    const activeContact = document.querySelector('.contacts>li.active')
+    if (payload.from == userId) return false
+    if (activeContact.dataset.id != payload.to || activeContact.dataset.target != payload.target) return false
+
+    return true
+  }
+
+
+
+
+  // UI code
+  const cloudContact = document.querySelector(`.contacts>li[data-id="${userId}"][data-target="USER"]`)
+  cloudContact.textContent = `Cloud ${userId}`
+  cloudContact.classList.add('active')
+
   let contacts = document.querySelectorAll('.contacts>li')
   Array.from(contacts).forEach(contact => {
     contact.onclick = () => {
@@ -202,6 +241,30 @@
   function changeContact() {
     const messagesBox = document.getElementById('messages')
     messagesBox.innerHTML = ''
+
+    // fetch messages
+    const activeContact = document.querySelector('.contacts>li.active')
+
+    const payload = {
+      from: userId,
+      to: activeContact.dataset.id,
+      target: activeContact.dataset.target,
+    }
+
+    fetch('/messages', {
+      method: 'POST', body: JSON.stringify(payload), headers: {
+        'Content-Type': 'application/json'
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => displayConversation(data.payload));
+  }
+
+  function displayConversation(msgs) {
+    msgs.forEach(msg => {
+      if (msg.from == userId) displayMessages(msg.content, 'host')
+      else displayMessages(msg.content, 'guest')
+    })
   }
 
   function displayMessages(msg, agent = 'host') {
