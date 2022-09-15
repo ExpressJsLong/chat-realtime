@@ -1,25 +1,30 @@
-const express = require("express");
+import express from "express";
 const app = express();
-const http = require("http");
+import cors from "cors";
+import http from "http";
 const server = http.createServer(app);
-const { Server } = require("socket.io");
-const io = new Server(server);
+
+import { Server } from "socket.io";
+import { instrument } from "@socket.io/admin-ui";
+import { socketHandle } from "./socket.handle.js";
+
+const io = new Server(server, {
+  cors: {
+    origin: ["https://admin.socket.io", "http://localhost:4310"],
+    credentials: true,
+  },
+});
+
+app.use(express.static("public"));
 
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
 });
 
-io.on("connection", (socket) => {
-  console.log("a user connected");
-  socket.on("disconnect", () => {
-    console.log("user disconnected");
-  });
-  socket.on("chat message", (msg) => {
-    console.log("message: " + msg);
-    io.emit("chat message", msg);
-  });
-});
+io.on("connection", socketHandle);
 
 server.listen(3000, () => {
   console.log("listening on http://localhost:3000");
 });
+
+instrument(io, { auth: false });
