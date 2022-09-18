@@ -14,9 +14,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
+var corsOptions = {
+  origin: "http://localhost:4040",
+};
+
+app.use(cors(corsOptions));
+
 const io = new Server(server, {
   cors: {
-    origin: ["https://admin.socket.io", "http://localhost:4310"],
+    origin: ["https://admin.socket.io", "http://localhost:4040"],
     credentials: true,
   },
 });
@@ -27,8 +33,8 @@ route(app);
 
 socketHandle(io);
 
-server.listen(3000, () => {
-  console.log("listening on http://localhost:3000");
+server.listen(4000, () => {
+  console.log("listening on http://localhost:4000");
 });
 
 instrument(io, { auth: false });
